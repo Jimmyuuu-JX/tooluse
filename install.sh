@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # 安装指定 commit 的 tooluse skill。三条不变量：
 # 1. 内容只来自 `git archive <SHA>`，不从工作树复制——记录的 SHA 必须等于装上去的内容。
-# 2. 只向空位安装。安装器不删除、不替换、不覆盖任何已存在的 skill、常驻文件或 manifest。
+# 2. 只向空位安装。安装器不删除、不替换、不覆盖任何已存在的 skill 或 manifest。
 # 3. 同一个 SHA 且内容指纹一致时幂等返回；其余冲突一律拒绝，由用户先整体移走旧安装。
 #
 # 因此这里没有回滚协议、没有备份目录、没有进度日志：一个不会删除用户数据的安装器
@@ -14,7 +14,7 @@ usage() {
 
 仅安装 skills/ 中的核心；companion-skills/ 按 README 单独复制安装。
 --target 是最终包含各 skill 目录的目录；默认 ~/.claude/skills。
-常驻块写到 target 的父目录：<parent>/tooluse-resident.md。
+常驻块不随安装写入：按 README 把 resident/tooluse-resident.md 的「常驻块」复制进宿主规则文件。
 
 --target 解析成物理路径后复查护栏：根目录、HOME 本身、本仓库内部一律拒绝，
 路径里不允许出现 . 或 .. 段。
@@ -59,16 +59,6 @@ fingerprint() {
       fi
     done | shasum -a 256 | cut -d' ' -f1
   )
-}
-# 常驻文件同理：内容之外还要盯类型与完整权限。
-file_fingerprint() {
-  if [ -L "$1" ]; then
-    printf 'l -> %s' "$(readlink "$1")" | shasum -a 256 | cut -d' ' -f1
-  elif [ -f "$1" ]; then
-    printf 'f%s %s' "$(mode_bits "$1")" "$(shasum -a 256 "$1" | cut -d' ' -f1)" | shasum -a 256 | cut -d' ' -f1
-  else
-    printf 'o%s' "$(mode_bits "$1")" | shasum -a 256 | cut -d' ' -f1
-  fi
 }
 
 commit=""
@@ -210,20 +200,12 @@ refuse_occupied() {
   exit 65
 }
 
-# target 尚不存在时，不可能有已登记的安装，所以父目录里的 resident 必定不是本安装器写的。
-# 这一检必须在 mkdir 之前，否则「拒绝但零写入」就不成立。
-pre_resident="$(dirname "$target")/tooluse-resident.md"
-if [ ! -d "$target" ] && path_occupied "$pre_resident"; then
-  refuse_occupied "将要写入的常驻文件已存在，且目标目录还没有任何已登记的安装。" "$pre_resident"
-fi
-
 # 全部拒绝判定都过了，才建目录；建完对真实物理路径复查同一批护栏。
 mkdir -p "$target" 2>/dev/null || die "--target 无法创建：$target"
 target=$(abspath "$target") || die "--target 无法解析：$target"
 check_target_guards "$target"
 
 manifest="$target/.tooluse-version"
-resident_target="$(dirname "$target")/tooluse-resident.md"
 # manifest 是可解析的普通文件才可作为本安装器记录；任何链接（含悬空）都是占位冲突。
 if path_occupied "$manifest" && { [ -L "$manifest" ] || [ ! -f "$manifest" ]; }; then
   refuse_occupied "版本记录路径已被非普通文件或符号链接占用。" "$manifest"
@@ -254,15 +236,9 @@ if [ -n "$installed_commit" ] && [ "$installed_commit" = "$resolved" ]; then
         break
       fi
     done
-    want_resident_fp=$(recorded_fingerprint resident) || want_resident_fp=""
-    if ! path_occupied "$resident_target" || [ -L "$resident_target" ] || [ -z "$want_resident_fp" ] ||
-      [ "$(file_fingerprint "$resident_target")" != "$want_resident_fp" ]; then
-      unchanged=0
-    fi
   fi
   if [ "$unchanged" -eq 1 ]; then
     printf '已是 %s，且内容未改动，无需重装。\n' "$resolved"
-    printf '常驻块：%s\n' "$resident_target"
     exit 0
   fi
 fi
@@ -274,14 +250,12 @@ if [ -n "$installed_commit" ] && [ "$installed_commit" != "$resolved" ]; then
     if [ -n "$skill" ] && path_occupied "$target/$skill"; then occupied+=("$target/$skill"); fi
   done < <(sed -n 's|^skill=||p' "$manifest")
   occupied+=("$manifest")
-  if path_occupied "$resident_target"; then occupied+=("$resident_target"); fi
   refuse_occupied "目标已装 tooluse ${installed_commit}，要换成 ${resolved} 属于升级；本安装器不做原地升级。" \
     "${occupied[@]}"
 fi
 for skill in "${selected[@]}"; do
   if path_occupied "$target/$skill"; then occupied+=("$target/$skill"); fi
 done
-if path_occupied "$resident_target"; then occupied+=("$resident_target"); fi
 if [ "${#occupied[@]}" -gt 0 ]; then
   if path_occupied "$manifest"; then occupied+=("$manifest"); fi
   refuse_occupied "目标已有内容，且与已登记的安装不一致（可能被本地修改、手工安装或部分残留）。" \
@@ -303,8 +277,7 @@ cleanup() {
 trap cleanup EXIT
 incoming=$(mktemp -d "$target/.tooluse-incoming.XXXXXX")
 
-git archive --format=tar "$resolved" skills resident/tooluse-resident.md | tar -xf - -C "$stage"
-[ -f "$stage/resident/tooluse-resident.md" ] || die "提交缺 resident/tooluse-resident.md"
+git archive --format=tar "$resolved" skills | tar -xf - -C "$stage"
 for skill in "${selected[@]}"; do
   [ -f "$stage/skills/$skill/SKILL.md" ] || die "提交缺 skills/$skill/SKILL.md"
 done
@@ -315,14 +288,9 @@ for skill in "${selected[@]}"; do
   fingerprints="${fingerprints}fingerprint=${skill}=$(fingerprint "$incoming/$skill")
 "
 done
-cp "$stage/resident/tooluse-resident.md" "$incoming/tooluse-resident.md"
-chmod 0644 "$incoming/tooluse-resident.md"
-fingerprints="${fingerprints}fingerprint=resident=$(file_fingerprint "$incoming/tooluse-resident.md")
-"
 {
   printf 'tooluse_commit=%s\n' "$resolved"
   printf 'installed_at_utc=%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-  printf 'resident=%s\n' "$resident_target"
   for skill in "${selected[@]}"; do printf 'skill=%s\n' "$skill"; done
   printf '%s' "$fingerprints"
 } >"$incoming/.tooluse-version"
@@ -332,8 +300,7 @@ fingerprints="${fingerprints}fingerprint=resident=$(file_fingerprint "$incoming/
 for skill in "${selected[@]}"; do
   mv "$incoming/$skill" "$target/$skill"
 done
-mv "$incoming/tooluse-resident.md" "$resident_target"
 mv "$incoming/.tooluse-version" "$manifest"
 
 printf '已从 %s 安装：%s\n' "$resolved" "${selected[*]}"
-printf '把 %s 的「常驻块」复制进目标项目的 CLAUDE.md 或 AGENTS.md。\n' "$resident_target"
+printf '常驻块不随安装写入：把 %s 的「常驻块」复制进宿主的 AGENTS.md 或 CLAUDE.md（已复制过则跳过）。\n' "$root/resident/tooluse-resident.md"

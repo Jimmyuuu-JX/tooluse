@@ -97,7 +97,7 @@ node "$SKILL_DIR/scripts/init-docs.mjs" --project-root <path>
 
 ## 派活（定架构的窗口写，冻结后不改）
 - 边界：只改哪些文件/目录
-- 权威完成条件来源：<contract SHA / 路径；未使用 contract 时填 Issue、规格或用户确认来源>
+- 权威完成条件来源：<Issue、规格或可复核的用户确认来源>
 - 不做但记录：
 
 ## 交活（执行窗口写）
@@ -105,7 +105,7 @@ node "$SKILL_DIR/scripts/init-docs.mjs" --project-root <path>
 - 未验证：
 
 ## 审查（审查窗口写）
-- blocking（P0/P1，以及违反完成条件或发布门禁的 P2）：必须修，修完重审新 candidate（最多两轮）
+- blocking（阻塞项，含违反完成条件或发布门禁的问题）：必须修，修完重审新 candidate（最多两轮）
 - 非 blocking：修完直接合，不重审
 - 根因层级：实现层 → 转执行窗口 ／ 方案层 → 本批终止，回定架构的窗口
 ```
@@ -118,7 +118,7 @@ node "$SKILL_DIR/scripts/init-docs.mjs" --project-root <path>
 重审的对象是修完后的新 candidate：candidate 一变，原来那份审查证据就不再成立。分级决定的是要不要修，
 不是谁来确认修对了；把曾经阻塞本批的问题降成「执行窗口自称已修」，恰好绕开了独立复核。
 
-**handoff 不重写验收。** 派活段只指向权威完成条件：使用冻结审计时是 contract SHA 或路径；未使用 contract 时是 Issue、外部规格或可复核的用户确认。交活段只能引用，不能把标准改写得贴合已经做出的实现。
+**handoff 不重写验收。** 派活段只指向权威完成条件：Issue、外部规格或可复核的用户确认。交活段只能引用，不能把标准改写得贴合已经做出的实现。
 
 ### 一批拆成多个并行任务
 

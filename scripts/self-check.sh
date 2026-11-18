@@ -129,7 +129,7 @@ mkdir "$install_guard_tmp/physical-home"
 ln -s "$install_guard_tmp/physical-home" "$install_guard_tmp/home-link"
 install_guard_output=$(HOME="$install_guard_tmp/home-link" bash install.sh \
   --commit "$(git rev-parse HEAD)" --target "$install_guard_tmp/home-link" \
-  --only scope-bound-editor 2>&1)
+  --only evidence-led-reviewer 2>&1)
 install_guard_status=$?
 if [ "$install_guard_status" -eq 0 ] || ! printf '%s' "$install_guard_output" | grep -q -- '--target 不能是 HOME 本身'; then
   note "install.sh 未拒绝经符号链接解析后的 HOME 本身"
@@ -143,11 +143,10 @@ echo "⑪ 常驻路由与共享块"
 python3 - <<'PY' || fail=1
 import collections,glob,os,re,sys
 expected={
- 'authority-boundary': {'README.md','skills/acceptance-author/SKILL.md','skills/evidence-led-reviewer/SKILL.md','skills/project-doc-system/SKILL.md'},
- 'external-anchor': {'skills/acceptance-author/SKILL.md','skills/evidence-led-reviewer/SKILL.md'},
+ 'authority-boundary': {'README.md','skills/evidence-led-reviewer/SKILL.md','skills/project-doc-system/SKILL.md'},
  'impact-triggers': {'resident/tooluse-resident.md'},
 }
-authority={'authority-boundary':'README.md','external-anchor':'skills/acceptance-author/SKILL.md','impact-triggers':'resident/tooluse-resident.md'}
+authority={'authority-boundary':'README.md','impact-triggers':'resident/tooluse-resident.md'}
 mark=re.compile(r'<!--\s*shared:([a-z0-9-]+):(start|end)\s*-->')
 blocks=collections.defaultdict(dict); bad=False
 for path in glob.glob('**/*.md',recursive=True):
@@ -172,9 +171,9 @@ for key in set(expected)|set(blocks):
     for path in got:
         if blocks[key][path] != source: print(f'  ✗ 共享块 {key} 在 {path} 漂移'); bad=True
 resident='resident/tooluse-resident.md'
-# 只搜标题会假绑：保留「高影响清单」标题、删掉下面九类触发条件，旧版仍然放行。
+# 只搜标题会假绑：保留「判定」标题、删掉下面九类触发条件，旧版仍然放行。
 # 所以逐类检查触发条件本体，而不是它们的容器。
-need=['**高影响清单。**','**高影响改动。**','**独立复核门。**','**冻结审计。**','回退目标条件','按风险选择','固定工作树快照','放宽、删除或改写验收条件','真正独立','需求来源','未独立复核']
+need=['**子代理。**','**判定。**','**实施。**','**独立复核门。**','回退目标条件','固定工作树快照','放宽、删除或改写验收条件','真正独立','需求来源','未独立复核']
 triggers=[
  ('认证与权限',['认证','权限','同意']),
  ('资金与计费',['支付','计费','资金']),
@@ -202,7 +201,7 @@ def sections(text):
         if line.startswith('## '): current=line[3:].strip()
         else: out[current]+=line+'\n'
     return out
-checks={'': ['derived-copy:'], '本次输入':['需求来源','执行方转述不算','Baseline SHA','Candidate','固定工作树快照','Contract SHA','外部锚点','契约冻结的计划形式','实际取证'], '工作方式':['未跟踪文件','审前审后','不要求用户先提交','按风险选择','不能授予工具','已批准','未授权处理','宿主'], '严重度':['P0：','P1：','P2：','P3：','重审新 candidate'], '输出':['产品正确性只能写「未验证」','顶层只能是「未验证」','不得给可发布结论','仓库内已验证']}
+checks={'': ['derived-copy:'], '本次输入':['需求来源','执行方转述不算','Baseline SHA','Candidate','固定工作树快照'], '工作方式':['未跟踪文件','审前审后','不要求用户先提交','按风险选择','不能授予工具','已批准','未授权处理','宿主'], '定级':['阻塞：','不阻塞：','重审新 candidate'], '输出':['产品正确性只能写「未验证」','顶层只能是「未验证」','不得给可发布结论','仓库内已验证']}
 if not os.path.exists(prompt): print(f'  ✗ 缺派生模板 {prompt}'); bad=True
 else:
     parts=sections(open(prompt,encoding='utf-8').read())
