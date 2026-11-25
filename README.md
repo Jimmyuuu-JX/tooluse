@@ -10,7 +10,7 @@
 | `third-party/` | 别人写的 skill，逐字副本，每个目录带 `SOURCE.md` | 只用脚本取回，不手改 |
 | `third-party/sources.tsv` | 第三方 skill 的来源清单 | 加一行就是收一个 |
 | `resident/` | 常驻纪律，复制进全局规则文件 | 和全局规则文件一起改 |
-| `scripts/` | `link.sh` 装到本机、`update-third-party.sh` 取回第三方、`self-check.sh` 自检 | |
+| `scripts/` | `link.sh` 装到本机、`check-tools.sh` 核对三个工具都能加载、`update-third-party.sh` 取回第三方、`self-check.sh` 自检 | |
 
 ## 装到本机
 
@@ -19,7 +19,7 @@ git clone https://github.com/Jimmyuuu-JX/tooluse.git ~/Documents/tooluse
 bash ~/Documents/tooluse/scripts/link.sh
 ```
 
-`link.sh` 把 `skills/` 和 `third-party/` 下每个 skill 链接进 `~/.agents/skills`（Codex、pi 直接读这里），再在 `~/.claude/skills` 建指向它的链接（Claude Code 只读这里）。它只补缺的链接、清掉失效的链接；遇到同名的实体目录或指向别处的链接就列出来停下，不覆盖。加、删 skill 或 `git pull` 之后重跑一次。
+`link.sh` 把 `skills/` 和 `third-party/` 下每个 skill 链接进 `~/.agents/skills`（Codex、pi 直接读这里），再在 `~/.claude/skills` 建指向它的链接（Claude Code 只读这里）。它只补缺的链接、清掉失效的链接；遇到同名的实体目录或指向别处的链接就列出来停下，不覆盖。加、删 skill 或 `git pull` 之后重跑一次，再跑 `scripts/check-tools.sh` 确认 Claude Code、Codex、pi 都能加载每个 skill（不调用模型，只在本机跑）。
 
 ## 加一个自己的 skill
 

@@ -2,6 +2,13 @@
 # 名字	GitHub 仓库	skill 目录	跟随分支	许可证文件
 reframe	cursor/plugins	pstack/skills/reframe	main	pstack/LICENSE
 sharpen	cursor/plugins	pstack/skills/sharpen	main	pstack/LICENSE
+how	cursor/plugins	pstack/skills/how	main	pstack/LICENSE
+why	cursor/plugins	pstack/skills/why	main	pstack/LICENSE
+teach	cursor/plugins	pstack/skills/teach	main	pstack/LICENSE
+bro	cursor/plugins	pstack/skills/bro	main	pstack/LICENSE
+in-your-own-words	cursor/plugins	pstack/skills/in-your-own-words	main	pstack/LICENSE
+unslop	cursor/plugins	pstack/skills/unslop	main	pstack/LICENSE
+blast-radius	cursor/plugins	pstack/skills/blast-radius	main	pstack/LICENSE
 code-review	mattpocock/skills	skills/engineering/code-review	main	LICENSE
 codebase-design	mattpocock/skills	skills/engineering/codebase-design	main	LICENSE
 diagnosing-bugs	mattpocock/skills	skills/engineering/diagnosing-bugs	main	LICENSE
