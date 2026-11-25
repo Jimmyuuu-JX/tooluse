@@ -1,0 +1,4 @@
+interface:
+  display_name: "动效打磨"
+  short_description: "按状态变化盘点动效，做到细腻、丝滑、一套语言"
+  default_prompt: "Use $motion-polish to audit and polish the motion of this product or area."

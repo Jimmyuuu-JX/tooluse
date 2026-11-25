@@ -1,0 +1,4 @@
+interface:
+  display_name: "体验审查"
+  short_description: "按八条体验原则审查并修好界面、交互和文案"
+  default_prompt: "Use $ux-review to review and fix the user experience of this product or area."

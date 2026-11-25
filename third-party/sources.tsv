@@ -1,0 +1,9 @@
+# 第三方 skill 来源。每行一个，制表符分隔：
+# 名字	GitHub 仓库	skill 目录	跟随分支	许可证文件
+reframe	cursor/plugins	pstack/skills/reframe	main	pstack/LICENSE
+sharpen	cursor/plugins	pstack/skills/sharpen	main	pstack/LICENSE
+code-review	mattpocock/skills	skills/engineering/code-review	main	LICENSE
+codebase-design	mattpocock/skills	skills/engineering/codebase-design	main	LICENSE
+diagnosing-bugs	mattpocock/skills	skills/engineering/diagnosing-bugs	main	LICENSE
+setup-matt-pocock-skills	mattpocock/skills	skills/engineering/setup-matt-pocock-skills	main	LICENSE
+tdd	mattpocock/skills	skills/engineering/tdd	main	LICENSE

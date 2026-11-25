@@ -2,7 +2,7 @@
 # 只检查可判定结构不变量；内容正确性仍需人和独立复核。
 set -uo pipefail
 cd "$(dirname "$0")/.."
-# companion-skills/ 可能整个不存在，未匹配的 glob 不能留成字面量去遍历
+# skills/ 或 third-party/ 可能为空，未匹配的 glob 不能留成字面量去遍历
 shopt -s nullglob
 fail=0 skipped=0 strict=0
 note() {
@@ -23,10 +23,9 @@ case "${1:-}" in "") ;; --strict) strict=1 ;; *)
   exit 64
   ;;
 esac
-is_vendored() { grep -qF "\`${1%/}/\`" NOTICE 2>/dev/null; }
 
 echo "① frontmatter name 与目录名一致"
-for d in skills/*/ companion-skills/*/; do
+for d in skills/*/ third-party/*/; do
   n=$(basename "$d") f="${d}SKILL.md"
   [ -f "$f" ] || {
     note "$n 缺 SKILL.md"
@@ -35,7 +34,7 @@ for d in skills/*/ companion-skills/*/; do
   [ "$n" = "$(awk '/^name:/{print $2;exit}' "$f")" ] || note "$n 的 name 不匹配"
 done
 
-echo "② 官方 validator"
+echo "② 自己的 skill 过官方 validator"
 validator=""
 for c in scripts/vendor/quick_validate.py "$HOME/.codex/skills/.system/skill-creator/scripts/quick_validate.py" "$HOME/.claude/skills/.system/skill-creator/scripts/quick_validate.py"; do
   [ -f "$c" ] && {
@@ -48,51 +47,57 @@ if [ -z "$validator" ]; then
 elif ! python3 -c 'import yaml' 2>/dev/null; then
   skip "缺 PyYAML，validator 未运行"
 else
-  for d in skills/*/ companion-skills/*/; do
+  # 第三方 skill 按上游格式写，可能用到 validator 不认的字段，不归本仓库修
+  for d in skills/*/; do
     [ -f "${d}SKILL.md" ] && python3 "$validator" "$d" >/dev/null 2>&1 || note "$(basename "$d") 未通过 validator"
   done
 fi
 
-echo "③ NOTICE 登记的第三方副本有出处"
-while IFS= read -r n; do
-  [ -d "$n" ] || {
-    note "NOTICE 登记的 $n 不存在"
-    continue
-  }
-  s="$n/SOURCE.md"
+echo "③ 第三方 skill 与来源清单一一对应、出处完整"
+listed=$(grep -vE '^(#|$)' third-party/sources.tsv 2>/dev/null | cut -f1)
+for n in $listed; do
+  [ -d "third-party/$n" ] || note "sources.tsv 登记的 $n 没有目录"
+done
+for d in third-party/*/; do
+  n=$(basename "$d") s="${d}SOURCE.md"
+  printf '%s\n' "$listed" | grep -qxF "$n" || note "third-party/$n 未登记在 sources.tsv"
   [ -f "$s" ] || {
-    note "$n 缺 SOURCE.md"
+    note "third-party/$n 缺 SOURCE.md"
     continue
   }
-  grep -qE '`[0-9a-f]{40}`' "$s" || note "$n/SOURCE.md 缺 SHA"
-  grep -q '许可证' "$s" || note "$n/SOURCE.md 缺许可证"
-done < <(grep -oE "\`(skills|companion-skills)/[a-z0-9-]+/\`" NOTICE 2>/dev/null | tr -d '`' | sed 's|/$||')
-
-echo "④ 有 SOURCE.md 的 skill 已登记"
-for d in skills/*/ companion-skills/*/; do
-  [ -f "${d}SOURCE.md" ] && ! is_vendored "$d" && note "${d} 未登记 NOTICE"
+  grep -qE '`[0-9a-f]{40}`' "$s" || note "third-party/$n/SOURCE.md 缺 SHA"
+  grep -q '许可证' "$s" || note "third-party/$n/SOURCE.md 缺许可证"
+  lic=$(grep -oE 'licenses/LICENSE-[A-Za-z0-9._-]+\.txt' "$s" | head -1)
+  [ -n "$lic" ] && [ -f "$lic" ] || note "third-party/$n 的许可证全文不在 licenses/"
 done
+grep -q 'third-party/' NOTICE 2>/dev/null || note "NOTICE 未登记 third-party/"
 
-echo "⑤ 第三方内容没有本地改动"
-for d in skills/*/ companion-skills/*/ scripts/vendor/; do
+echo "④ 自己的 skill 不带 SOURCE.md，也不和第三方重名"
+for d in skills/*/; do
   n=$(basename "$d")
-  [ "$n" = vendor ] || is_vendored "$d" || continue
-  [ -f "${d}SOURCE.md" ] || continue
-  dirty=$(git status --porcelain -- "$d" | grep -vE 'SOURCE\.md|LICENSE|NOTICE' | wc -l | tr -d ' ')
-  [ "$dirty" -eq 0 ] || note "第三方 $n 有 $dirty 个本地改动"
+  [ ! -f "${d}SOURCE.md" ] || note "skills/$n 带 SOURCE.md：第三方副本应放 third-party/"
+  [ ! -d "third-party/$n" ] || note "$n 同时在 skills/ 和 third-party/"
 done
 
-echo "⑥ 第三方内容历史只收录一次"
-if [ "$(git rev-parse --is-shallow-repository 2>/dev/null)" = true ]; then
-  skip "浅克隆，跳过历史检查"
-else
-  for d in skills/*/ companion-skills/*/; do
-    n=$(basename "$d")
-    is_vendored "$d" || continue
-    count=$(git log --format=%H -- "$d" ":(exclude)${d}SOURCE.md" ":(exclude)${d}LICENSE*" ":(exclude)${d}NOTICE*" | wc -l | tr -d ' ')
-    [ "$count" -le 1 ] || note "第三方 $n 内容有 $count 次提交"
-  done
-fi
+echo "⑤ 第三方内容没被手改"
+for d in third-party/*/; do
+  n=$(basename "$d") s="${d}SOURCE.md"
+  [ -f "$s" ] || continue
+  want=$(grep '内容指纹' "$s" | grep -oE '[0-9a-f]{64}' | head -1)
+  [ -n "$want" ] || {
+    note "third-party/$n/SOURCE.md 缺内容指纹"
+    continue
+  }
+  [ "$(scripts/fingerprint.sh "$d")" = "$want" ] || note "third-party/$n 与取回时的指纹不一致（被手改过？要改就复制到 skills/）"
+done
+
+echo "⑥ vendor 副本出处完整、没有本地改动"
+[ -f scripts/vendor/SOURCE.md ] || note "vendor 缺 SOURCE.md"
+grep -qE '`[0-9a-f]{40}`' scripts/vendor/SOURCE.md 2>/dev/null || note "vendor 缺 SHA"
+[ -f licenses/LICENSE-anthropics-skills.txt ] || note "缺 Anthropic 许可证"
+grep -q 'scripts/vendor' NOTICE 2>/dev/null || note "NOTICE 未登记 vendor"
+dirty=$(git status --porcelain -- scripts/vendor | grep -vE 'SOURCE\.md|__pycache__' | wc -l | tr -d ' ')
+[ "$dirty" -eq 0 ] || note "vendor 有 $dirty 个本地改动"
 
 echo "⑦ 仓库内相对链接可落地"
 python3 - <<'PY' || fail=1
@@ -109,37 +114,40 @@ for item in bad: print(f'  ✗ 断链 {item}')
 sys.exit(bool(bad))
 PY
 
-echo "⑧ vendor 出处与许可证完整"
-[ -f scripts/vendor/SOURCE.md ] || note "vendor 缺 SOURCE.md"
-grep -qE '`[0-9a-f]{40}`' scripts/vendor/SOURCE.md 2>/dev/null || note "vendor 缺 SHA"
-[ -f licenses/LICENSE-anthropics-skills.txt ] || note "缺 Anthropic 许可证"
-grep -q 'scripts/vendor' NOTICE 2>/dev/null || note "NOTICE 未登记 vendor"
-
-echo "⑨ 顶层许可证与 NOTICE 划清边界"
+echo "⑧ 顶层许可证与 NOTICE 划清边界"
 [ -f LICENSE ] && grep -q 'Permission is hereby granted' LICENSE || note "LICENSE 不是 MIT 正文"
 [ -f NOTICE ] && grep -q 'SOURCE.md' NOTICE || note "NOTICE 缺判别方法"
 grep -q 'NOTICE' README.md || note "README 未指向 NOTICE"
 
-echo "⑩ 随包脚本自检"
+echo "⑨ 随包脚本自检"
 if command -v node >/dev/null 2>&1; then
   node skills/project-doc-system/scripts/init-docs.mjs --self-test >/dev/null 2>&1 || note "init-docs 自检失败"
 else skip "没有 node，跳过随包脚本自检"; fi
-install_guard_tmp=$(mktemp -d "${TMPDIR:-/tmp}/tooluse-home-guard.XXXXXX")
-mkdir "$install_guard_tmp/physical-home"
-ln -s "$install_guard_tmp/physical-home" "$install_guard_tmp/home-link"
-install_guard_output=$(HOME="$install_guard_tmp/home-link" bash install.sh \
-  --commit "$(git rev-parse HEAD)" --target "$install_guard_tmp/home-link" \
-  --only evidence-led-reviewer 2>&1)
-install_guard_status=$?
-if [ "$install_guard_status" -eq 0 ] || ! printf '%s' "$install_guard_output" | grep -q -- '--target 不能是 HOME 本身'; then
-  note "install.sh 未拒绝经符号链接解析后的 HOME 本身"
+link_tmp=$(mktemp -d "${TMPDIR:-/tmp}/tooluse-link.XXXXXX")
+link_run() { TOOLUSE_AGENTS_DIR="$link_tmp/agents" TOOLUSE_CLAUDE_DIR="$link_tmp/claude" bash scripts/link.sh "$@"; }
+if link_run >/dev/null 2>&1; then
+  for d in skills/*/ third-party/*/; do
+    n=$(basename "$d")
+    [ -f "$link_tmp/claude/$n/SKILL.md" ] || note "link.sh 没让 $n 经 Claude 目录可读"
+  done
+  [ -z "$(link_run 2>&1)" ] || note "link.sh 重跑不是零输出"
+  ln -s "$link_tmp/nowhere" "$link_tmp/agents/gone-skill"
+  link_run >/dev/null 2>&1
+  [ ! -L "$link_tmp/agents/gone-skill" ] && note "link.sh 清掉了不指向本仓库的失效链接"
+  rm -f "$link_tmp/agents/gone-skill"
+  ln -s "$(pwd -P)/skills/gone-skill" "$link_tmp/agents/gone-skill"
+  link_run >/dev/null 2>&1
+  [ -L "$link_tmp/agents/gone-skill" ] && note "link.sh 没清掉指向本仓库已删 skill 的链接"
+  first=$(basename "$(ls -d skills/*/ | head -1)")
+  rm "$link_tmp/agents/$first" && mkdir "$link_tmp/agents/$first" && touch "$link_tmp/agents/$first/keep"
+  link_run >/dev/null 2>&1 && note "link.sh 遇到同名实体目录没有报错"
+  [ -f "$link_tmp/agents/$first/keep" ] || note "link.sh 动了同名实体目录"
+else
+  note "link.sh 在空目录上失败"
 fi
-if [ -n "$(find "$install_guard_tmp/physical-home" -mindepth 1 -print -quit)" ]; then
-  note "install.sh 拒绝 HOME 后仍有写入"
-fi
-rm -rf -- "$install_guard_tmp"
+rm -rf -- "$link_tmp"
 
-echo "⑪ 常驻路由与共享块"
+echo "⑩ 常驻路由与共享块"
 python3 - <<'PY' || fail=1
 import collections,glob,os,re,sys
 expected={

@@ -4,18 +4,16 @@
 
 以下是第三方逐字副本，各自适用上游许可证，**不受 LICENSE 约束**：
 
-| 位置 | 上游 | 许可证 |
+| 位置 | 上游 | 许可证全文 |
 |---|---|---|
-| `scripts/vendor/` | anthropics/skills | Apache-2.0 |
+| `scripts/vendor/` | anthropics/skills | [Apache-2.0 (Anthropic)](licenses/LICENSE-anthropics-skills.txt) |
+| `third-party/` 下各目录 | 见各目录 `SOURCE.md` 与 [third-party/sources.tsv](third-party/sources.tsv) | `licenses/` 下对应文件 |
 
 `skills/` 下没有第三方逐字副本。
 
 判别方法：**目录内有 `SOURCE.md` 的就是第三方副本**，其中记录了上游仓库、
-路径、钉住的 SHA 与许可证。许可证全文：
-[Apache-2.0 (Anthropic)](licenses/LICENSE-anthropics-skills.txt)
-
-**不做上游保鲜。** 钉住的版本能用就一直能用；上游前进不是本地缺陷，
-想跟进就手动重新取回并更新对应 `SOURCE.md`。
+路径、钉住的 SHA 与许可证。`third-party/` 用 `scripts/update-third-party.sh`
+跟进上游；`scripts/vendor/` 不做上游保鲜，想跟进就手动重新取回并更新它的 `SOURCE.md`。
 
 These directories are verbatim third-party copies governed by their own
 upstream licenses, not by LICENSE. A directory containing SOURCE.md is a
