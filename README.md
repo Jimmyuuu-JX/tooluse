@@ -21,7 +21,7 @@ bash ~/Documents/tooluse/scripts/link.sh
 
 `link.sh` 把 `skills/` 和 `third-party/` 下每个 skill 链接进 `~/.agents/skills`（Codex、pi 直接读这里），再在 `~/.claude/skills` 建指向它的链接（Claude Code 只读这里）。它只补缺的链接、清掉失效的链接；遇到同名的实体目录或指向别处的链接就列出来停下，不覆盖。加、删 skill 或 `git pull` 之后重跑一次，再跑 `scripts/check-tools.sh` 确认 Claude Code、Codex、pi 都能加载每个 skill（不调用模型，只在本机跑）。
 
-Antigravity 不靠 `link.sh`：在 `~/.gemini/config/skills.json` 的 `entries` 里登记 `~/.agents/skills` 一条路径即可。`check-tools.sh` 不核对它。
+Antigravity 不靠 `link.sh`：在 `~/.gemini/config/skills.json` 的 `entries` 里登记 `~/.agents/skills` 的绝对路径（如 `/Users/<用户名>/.agents/skills`，Antigravity 不展开 `~/`）。`check-tools.sh` 不核对它。
 
 ## 加一个自己的 skill
 
