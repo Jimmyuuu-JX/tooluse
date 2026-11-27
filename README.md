@@ -1,6 +1,6 @@
 # tooluse
 
-个人 skill 库：自己写的 skill、收来的第三方 skill，加一段常驻纪律。Claude Code、Codex、pi 共用这一份。
+个人 skill 库：自己写的 skill、收来的第三方 skill，加一段常驻纪律。Claude Code、Codex、pi、Antigravity 共用这一份。各工具自己沉淀的东西（pi 的本地 skill 和记忆、Claude Code 的记忆等）留在各自那里，不进本仓库。
 
 ## 目录
 
@@ -21,9 +21,11 @@ bash ~/Documents/tooluse/scripts/link.sh
 
 `link.sh` 把 `skills/` 和 `third-party/` 下每个 skill 链接进 `~/.agents/skills`（Codex、pi 直接读这里），再在 `~/.claude/skills` 建指向它的链接（Claude Code 只读这里）。它只补缺的链接、清掉失效的链接；遇到同名的实体目录或指向别处的链接就列出来停下，不覆盖。加、删 skill 或 `git pull` 之后重跑一次，再跑 `scripts/check-tools.sh` 确认 Claude Code、Codex、pi 都能加载每个 skill（不调用模型，只在本机跑）。
 
+Antigravity 不靠 `link.sh`：在 `~/.gemini/config/skills.json` 的 `entries` 里登记 `~/.agents/skills` 一条路径即可。`check-tools.sh` 不核对它。
+
 ## 加一个自己的 skill
 
-在 `skills/<名字>/SKILL.md` 写好，frontmatter 的 `name` 和目录名一致，跑 `scripts/link.sh`。三个工具下次开会话就能看到。
+在 `skills/<名字>/SKILL.md` 写好，frontmatter 的 `name` 和目录名一致，跑 `scripts/link.sh`。各工具下次开会话就能看到。
 
 ## 第三方 skill
 
@@ -35,7 +37,7 @@ scripts/update-third-party.sh <名字>
 
 更新全部：不带名字运行。脚本从上游取回整个目录，替换本地副本，在 `SOURCE.md` 记下钉住的 SHA、许可证和内容指纹，许可证全文放进 `licenses/`。它只复制文件，不执行取回的内容。
 
-**取回后先看 `git diff -- third-party licenses` 再提交。** Skill 是给 agent 的指令，上游改一句，三个工具的行为就跟着变；链接直接指向工作区，取回后立刻生效，不满意就 `git checkout -- third-party licenses` 退回。
+**取回后先看 `git diff -- third-party licenses` 再提交。** Skill 是给 agent 的指令，上游改一句，各工具的行为就跟着变；链接直接指向工作区，取回后立刻生效，不满意就 `git checkout -- third-party licenses` 退回。
 
 想改第三方 skill：复制到 `skills/`，换个名字，当自己的维护。自检会发现 `third-party/` 里的手改。
 
@@ -48,7 +50,7 @@ scripts/update-third-party.sh <名字>
 
 ## 常驻纪律
 
-[resident/tooluse-resident.md](resident/tooluse-resident.md) 的「常驻块」复制进每次会话都会加载的全局规则文件（共用时是 `~/.agents/AGENTS.md`，再链接成 `~/.claude/CLAUDE.md`、`~/.codex/AGENTS.md`、`~/.pi/agent/AGENTS.md`）。两边要逐字一致，改一边就同步另一边。
+[resident/tooluse-resident.md](resident/tooluse-resident.md) 的「常驻块」复制进每次会话都会加载的全局规则文件（共用时是 `~/.agents/AGENTS.md`，再链接成 `~/.claude/CLAUDE.md`、`~/.codex/AGENTS.md`、`~/.pi/agent/AGENTS.md`、`~/.gemini/config/AGENTS.md`）。两边要逐字一致，改一边就同步另一边。
 
 它规定日常改动的防错规则、高影响改动的判定和独立复核门。高影响改动要给 PASS、可合并或可发布结论时，另开窗口、客户端或 CLI 用 `evidence-led-reviewer` 复核。不支持 Skills 的工具：手动提供常驻块；审查者使用 [reviewer-role-prompt.md](skills/evidence-led-reviewer/assets/reviewer-role-prompt.md)。
 
